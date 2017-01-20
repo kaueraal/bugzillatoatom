@@ -38,7 +38,8 @@ func min(a int, b int) int {
     }
 }
 
-// Read from r until given string is found. Appends toAppend afterwards and returns the result
+// Read from r until given string is found. Appends toAppend afterwards if string
+// is found and in any case returns the result
 func readUntilString(r io.Reader, until string, toAppend string) (string, error) {
     var buffer bytes.Buffer
     eofReached := false
