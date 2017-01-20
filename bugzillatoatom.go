@@ -12,7 +12,7 @@ import "io"
 import "bufio"
 import "bytes"
 import "encoding/xml"
-import "github.com/gorilla/feeds"
+import "golang.org/x/tools/blog/atom"
 
 
 // TODO that shouldn't be a constant. Parse as argument?
@@ -101,6 +101,7 @@ func convertXmlToAtom(inXml string) (string, error) {
     type Comment struct {
         CommentId int `xml:"commentid"`
         CommentCount int `xml:"comment_count"`
+        AttachmentID int `xml:"attachid"`
         Who Who `xml:"who"`
         When string `xml:"bug_when"`
         Text string `xml:"thetext"`
@@ -126,55 +127,56 @@ func convertXmlToAtom(inXml string) (string, error) {
         return "", err
     }
 
-    creationTime, err := time.Parse(bugzillaDateFormat, inResult.Comments[0].When)
-    if err != nil {
-        log.Printf("Couldn't parse creationTime in initial comment: %s\n", err)
-        return "", err
-    }
     updateTime, err := time.Parse(bugzillaDateFormat, inResult.Comments[len(inResult.Comments)-1].When)
     if err != nil {
         log.Printf("Couldn't parse updateTime in initial comment: %s\n", err)
         return "", err
     }
 
-    inUrl := fmt.Sprintf("%sshow_bug.cgi?id=%d", inResult.Urlbase, inResult.BugId)
+    inUrl := fmt.Sprintf("%s/show_bug.cgi?id=%d", inResult.Urlbase, inResult.BugId)
+    attachmentUrl := fmt.Sprintf("%s/attachment.cgi?id=", inResult.Urlbase)
 
-    feed := &feeds.Feed{
+    feed := &atom.Feed{
         Title: inResult.Description,
-        Link: &feeds.Link{Href: inUrl},
-        Author: &feeds.Author{Name: getFormatedName(inResult.Comments[0].Who)},
-        Created: creationTime, // Not used in atom
-        Updated: updateTime,
+        ID: inUrl,
+        Link: []atom.Link{atom.Link{Href: inUrl, Rel: "alternate"}},
+        Updated: atom.Time(updateTime),
+        Author: &atom.Person{Name: getFormatedName(inResult.Comments[0].Who)},
+        Entry: make([]*atom.Entry, 0, len(inResult.Comments)),
     }
 
     for i, comment := range inResult.Comments {
-        updateTime, err = time.Parse(bugzillaDateFormat, comment.When)
+        creationTime, err := time.Parse(bugzillaDateFormat, comment.When)
         if err != nil {
             log.Printf("Couldn't parse updateTime in comment %d: %s\n", i, err)
             return "", err
         }
 
-        item := &feeds.Item{
-            Title: getFormatedName(comment.Who) + ": " + comment.Text[:min(100, len(comment.Text))],
-            Link: &feeds.Link{Href: inUrl + "#c" + strconv.Itoa(comment.CommentCount)},
-            Description: strings.Replace(html.EscapeString(comment.Text), "\n", "<br>", -1),
-            Author: &feeds.Author{Name: getFormatedName(comment.Who)},
-            Created: updateTime, // Not used in atom
-            Updated: updateTime,    
-            Id: strconv.Itoa(comment.CommentId),
+        links := []atom.Link{atom.Link{Href: inUrl + "#c" + strconv.Itoa(comment.CommentCount), Rel: "alternate"}}
+        if comment.AttachmentID != 0 {
+            links = append(links, atom.Link{Href: attachmentUrl + strconv.Itoa(comment.AttachmentID), Rel: "enclosure"})
         }
 
-        feed.Add(item)
+        entry := &atom.Entry{
+            Title: getFormatedName(comment.Who) + ": " + comment.Text[:min(100, len(comment.Text))],
+            ID: inUrl + "#c" + strconv.Itoa(comment.CommentCount),
+            Link: links,
+            Published: atom.Time(creationTime),
+            Author: &atom.Person{Name: getFormatedName(comment.Who)},
+            Content: &atom.Text{Type: "html", Body: strings.Replace(html.EscapeString(comment.Text), "\n", "<br>", -1)},
+        }
+
+        feed.Entry = append(feed.Entry, entry)
     }
 
 
-    atom, err := feed.ToAtom()
+    atom, err := xml.MarshalIndent(feed, "", "\t")
     if err != nil {
         log.Printf("Error during creating the atom feed: %s\n", err)
         return "", err
     }
 
-    return atom, nil
+    return xml.Header + string(atom), nil
 }
 
 func handleConvert(w http.ResponseWriter, r *http.Request) {
