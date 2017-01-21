@@ -5,6 +5,7 @@ import "strconv"
 import "fmt"
 import "errors"
 import "net/http"
+import "net/url"
 import "time"
 import "html"
 import "log"
@@ -181,32 +182,49 @@ func convertXmlToAtom(inXml string) (string, error) {
 }
 
 func handleConvert(w http.ResponseWriter, r *http.Request) {
-    // TODO: do some security: What about local domains, etc... Is there even an url? Test for this stuff!
-    // TODO: Do not always add ctype=xml, do some security checking or so.. Add via function? Also it's broken when only an domain is entered, or domain+port without / at the end
-    // TODO: remove anchors as #c0
+    // TODO: do some security: What about local domains, etc... Test for this stuff!
 
     // Block during too many requests in the last second
     if maxRequestsPerSecond >= 0 {
         <-tooManyRequestsBlocker
     }
 
-    target := r.FormValue("url") + "&ctype=xml"
+    formValueUrl := r.FormValue("url")
 
     // if the user didn't give a protocol simply assume http
-    if !(strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://")) {
-        target = "http://" + target
+    if !(strings.HasPrefix(formValueUrl, "http://") || strings.HasPrefix(formValueUrl, "https://")) {
+        formValueUrl = "http://" + formValueUrl
     }
 
-    inXml, err := doRequest(target)
+    target, err := url.Parse(formValueUrl)
+
     if err != nil {
-        errStr := fmt.Sprintf("Error occurred during fetching the url \"%s\": %s\nAre you sure the url is correct?", target, err.Error())
+        errStr := fmt.Sprintf("Error occurred during parsing the url \"%s\": %s\nAre you sure the url is correct?", r.FormValue("url"), err.Error())
+        http.Error(w, errStr, http.StatusInternalServerError)
+        return
+    }
+
+    parsedQuery := target.Query()
+    parsedQuery.Set("ctype", "xml")
+    target.RawQuery = parsedQuery.Encode()
+    target.Fragment = ""
+
+    if target.Host == "" {
+        errStr := fmt.Sprintf("Error occurred during parsing the url \"%s\": No host recognized.\nAre you sure the url is correct?", formValueUrl)
+        http.Error(w, errStr, http.StatusInternalServerError)
+        return
+    }
+
+    inXml, err := doRequest(target.String())
+    if err != nil {
+        errStr := fmt.Sprintf("Error occurred during fetching the url \"%s\": %s\nAre you sure the url is correct?", target.String(), err.Error())
         http.Error(w, errStr, http.StatusInternalServerError)
         return
     }
 
     atom, err := convertXmlToAtom(inXml)
     if err != nil {
-        errStr := fmt.Sprintf("Error occurred during conversion of the url \"%s\" to atom: %s\nAre you sure the url is correct?", target, err.Error())
+        errStr := fmt.Sprintf("Error occurred during conversion of the url \"%s\" to atom: %s\nAre you sure the url is correct?", target.String(), err.Error())
         http.Error(w, errStr, http.StatusInternalServerError)
         return
     }
