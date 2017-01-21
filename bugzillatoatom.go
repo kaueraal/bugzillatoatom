@@ -231,6 +231,10 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+    // Add a timeout for the default http.Get() in case something goes wrong
+    // on the oher side.
+    http.DefaultClient = &http.Client{Timeout: time.Second * 30}
+
     for i := 0; i < maxRequestsPerSecond; i++ {
         go func() {
             for {
