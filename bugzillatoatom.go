@@ -200,14 +200,14 @@ func handleConvert(w http.ResponseWriter, r *http.Request) {
     inXml, err := doRequest(target)
     if err != nil {
         errStr := fmt.Sprintf("Error occurred during fetching the url \"%s\": %s\nAre you sure the url is correct?", target, err.Error())
-        http.Error(w, errStr, 500)
+        http.Error(w, errStr, http.StatusInternalServerError)
         return
     }
 
     atom, err := convertXmlToAtom(inXml)
     if err != nil {
         errStr := fmt.Sprintf("Error occurred during conversion of the url \"%s\" to atom: %s\nAre you sure the url is correct?", target, err.Error())
-        http.Error(w, errStr, 500)
+        http.Error(w, errStr, http.StatusInternalServerError)
         return
     }
 
