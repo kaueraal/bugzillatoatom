@@ -108,7 +108,6 @@ func convertXmlToAtom(inXml string) (string, error) {
         Who Who `xml:"who"`
         When string `xml:"bug_when"`
         Text string `xml:"thetext"`
-        // TODO: add attachments?
     }
 
     type InResult struct {
