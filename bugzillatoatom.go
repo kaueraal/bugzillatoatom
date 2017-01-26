@@ -4,6 +4,7 @@ import "strings"
 import "strconv"
 import "fmt"
 import "errors"
+import "net"
 import "net/http"
 import "net/url"
 import "time"
@@ -181,9 +182,32 @@ func convertXmlToAtom(inXml string) (string, error) {
     return xml.Header + string(atom), nil
 }
 
-func handleConvert(w http.ResponseWriter, r *http.Request) {
-    // TODO: do some security: What about local domains, etc... Test for this stuff!
+// Filters not allowed targets, defined by the given networks
+// TODO: Technically an attack is possible. First return a harmless IP
+//       for the check and another one later for the actual request.
+func checkTargetAllowed(target string, forbiddenNetworks []*net.IPNet) (bool, error) {
+    if forbiddenNetworks == nil {
+        return true, nil
+    }
 
+    ips, err := net.LookupIP(target)
+
+    if err != nil {
+        return false, err
+    }
+
+    for _, ip := range ips {
+        for _, ipnet := range forbiddenNetworks {
+            if ipnet.Contains(ip) {
+                return false, nil
+            }
+        }
+    }
+
+    return true, nil
+}
+
+func handleConvert(w http.ResponseWriter, r *http.Request, forbiddenNetworks []*net.IPNet) {
     // Block during too many requests in the last second
     if maxRequestsPerSecond >= 0 {
         <-tooManyRequestsBlocker
@@ -212,6 +236,20 @@ func handleConvert(w http.ResponseWriter, r *http.Request) {
     if target.Host == "" {
         errStr := fmt.Sprintf("Error occurred during parsing the url \"%s\": No host recognized.\nAre you sure the url is correct?", formValueUrl)
         http.Error(w, errStr, http.StatusInternalServerError)
+        return
+    }
+
+    allowed, err := checkTargetAllowed(target.Host, forbiddenNetworks)
+    if err != nil {
+        errStr := fmt.Sprintf("Error occurred during checking the host \"%s\" is blocked.\nAre you sure the url is correct?", target.Host)
+        http.Error(w, errStr, http.StatusInternalServerError)
+        return
+    }
+
+    if !allowed {
+
+        errStr := fmt.Sprintf("Host \"%s\" of url \"%s\" is blocked.", target.Host, formValueUrl)
+        http.Error(w, errStr, http.StatusForbidden)
         return
     }
 
@@ -261,7 +299,7 @@ func main() {
         }()
     }
 
-    http.HandleFunc("/convert", handleConvert)
+    http.HandleFunc("/convert", func(w http.ResponseWriter, r *http.Request) { handleConvert(w, r, []*net.IPNet{}) })
     http.HandleFunc("/", handleMain)
 
     http.ListenAndServe(":9080", nil)
