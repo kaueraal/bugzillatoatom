@@ -245,7 +245,6 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 </body>
 </html>
 `)
-    // TODO: do some pretty gui stuff
 }
 
 func main() {
