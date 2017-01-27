@@ -27,6 +27,11 @@ var maxRequestsPerSecond int
 // Channel to block on during too many requests in a second
 var tooManyRequestsBlocker chan bool = make(chan bool)
 
+const versionMajor = 0
+const versionMinor = 1
+const versionBugfix = 0
+const versionGit = true
+
 const bugzillaDateFormat = "2006-01-02 15:04:05 -0700"
 
 
@@ -36,6 +41,14 @@ func min(a int, b int) int {
         return a
     } else {
         return b
+    }
+}
+
+func getVersion() string {
+    if versionGit {
+        return strconv.Itoa(versionMajor) + "." + strconv.Itoa(versionMinor) + "." + strconv.Itoa(versionBugfix) + "-git"
+    } else {
+        return strconv.Itoa(versionMajor) + "." + strconv.Itoa(versionMinor) + "." + strconv.Itoa(versionBugfix)
     }
 }
 
@@ -329,12 +342,17 @@ func (forbiddenNetworks *CIDRList) Set(value string) error {
 }
 
 func main() {
+    version := flag.Bool("version", false, "Print the current version and exit")
     port := flag.Uint64("p", 9080, "Port to bind to")
     maxBugRequestReadFlag := flag.Uint64("requestsize", 1 * 1024 * 1024, "Maximum number of bytes to read during a request to another server.") // 1MiB per default
     flag.IntVar(&maxRequestsPerSecond, "persecond", 5, "Maximum number of requests to another server per second. Set to -1 to disable.")
     forbiddenNetworks := CIDRList{}
     flag.Var(&forbiddenNetworks, "b", "IP or Network in CIDR format to block. If a host is available under any blocked IP it will be blocked. Can be given multiple times.\n\tYou probably want to exclude localhost or local networks both on IPv4 and IPv6.")
     flag.Parse()
+
+    if *version {
+        log.Fatalln(getVersion())
+    }
 
     if *maxBugRequestReadFlag & (1 << 63) != 0 {
         log.Fatal("Too large requestsize")
