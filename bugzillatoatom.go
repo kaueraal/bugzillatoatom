@@ -13,17 +13,16 @@ import "log"
 import "io"
 import "bufio"
 import "bytes"
+import "flag"
 import "encoding/xml"
 import "golang.org/x/tools/blog/atom"
 
 
-// TODO that shouldn't be a constant. Parse as argument?
 // Maximum size a request for a bug-xml is read in byte. 
-var maxBugRequestRead int64 = 1 * 1024 * 1024 // 1MiB per default
+var maxBugRequestRead int64
 
-// TODO that shouldn't be a constant. Parse as argument?
 // Maximum number of requests per second. Set to something negative to disable
-var maxRequestsPerSecond int = 5
+var maxRequestsPerSecond int
 
 const bugzillaDateFormat = "2006-01-02 15:04:05 -0700"
 
@@ -284,7 +283,58 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 `)
 }
 
+// Parses a given IP or CIDR into a CIDR. IPs are treated as CIDRs with full bitmask
+func parseIPOrCIDR(str string) (*net.IPNet, error) {
+
+    if !strings.Contains(str, "/") {
+        if strings.Contains(str, ":") {
+            str = str + "/128"
+        } else {
+            str = str + "/32"
+        }
+    }
+
+    _, ipnet, err := net.ParseCIDR(str)
+    return ipnet, err
+}
+
+// To allow forbiddenNetworks to be parsed as argument
+type CIDRList []*net.IPNet
+
+func (forbiddenNetworks *CIDRList) String() string {
+    strs := []string{}
+
+    for _, ipnet := range *forbiddenNetworks {
+        strs = append(strs, ipnet.String())
+    }
+
+    return strings.Join(strs, ", ")
+}
+
+func (forbiddenNetworks *CIDRList) Set(value string) error {
+    ipnet, err := parseIPOrCIDR(value)
+
+    if err == nil {
+        *forbiddenNetworks = append(*forbiddenNetworks, ipnet)
+    }
+
+    return err
+}
+
 func main() {
+    port := flag.Uint64("p", 9080, "Port to bind to")
+    maxBugRequestReadFlag := flag.Uint64("requestsize", 1 * 1024 * 1024, "Maximum number of bytes to read during a request to another server.") // 1MiB per default
+    flag.IntVar(&maxRequestsPerSecond, "persecond", 1 * 1024 * 1024, "Maximum number of requests to another server per second. Set to -1 to disable.")
+    forbiddenNetworks := CIDRList{}
+    flag.Var(&forbiddenNetworks, "b", "IP or Network in CIDR format to block. If a host is available under any blocked IP it will be blocked. Can be given multiple times.")
+    flag.Parse()
+
+    if *maxBugRequestReadFlag & (1 << 63) != 0 {
+        log.Fatal("Too large requestsize")
+    } else {
+        maxBugRequestRead = int64(*maxBugRequestReadFlag)
+    }
+
     // Add a timeout for the default http.Get() in case something goes wrong
     // on the oher side.
     http.DefaultClient = &http.Client{Timeout: time.Second * 30}
@@ -298,8 +348,8 @@ func main() {
         }()
     }
 
-    http.HandleFunc("/convert", func(w http.ResponseWriter, r *http.Request) { handleConvert(w, r, []*net.IPNet{}) })
+    http.HandleFunc("/convert", func(w http.ResponseWriter, r *http.Request) { handleConvert(w, r, forbiddenNetworks) })
     http.HandleFunc("/", handleMain)
 
-    http.ListenAndServe(":9080", nil)
+    log.Fatal(http.ListenAndServe(":" + strconv.FormatUint(*port, 10), nil))
 }
