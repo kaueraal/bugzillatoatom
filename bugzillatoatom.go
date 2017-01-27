@@ -239,7 +239,7 @@ func handleConvert(w http.ResponseWriter, r *http.Request, forbiddenNetworks []*
 
     allowed, err := checkTargetAllowed(target.Host, forbiddenNetworks)
     if err != nil {
-        errStr := fmt.Sprintf("Error occurred during checking the host \"%s\" is blocked.\nAre you sure the url is correct?", target.Host)
+        errStr := fmt.Sprintf("Error occurred during checking whether the host \"%s\" is blocked.\nAre you sure the url is correct?", target.Host)
         http.Error(w, errStr, http.StatusInternalServerError)
         return
     }
