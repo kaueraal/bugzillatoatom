@@ -355,7 +355,7 @@ func main() {
     }
 
     if *maxBugRequestReadFlag & (1 << 63) != 0 {
-        log.Fatal("Too large requestsize")
+        log.Fatalln("Too large requestsize")
     } else {
         maxBugRequestRead = int64(*maxBugRequestReadFlag)
     }
