@@ -231,21 +231,29 @@ func handleConvert(w http.ResponseWriter, r *http.Request, forbiddenNetworks []*
     target.RawQuery = parsedQuery.Encode()
     target.Fragment = ""
 
-    if target.Host == "" {
+    portPosition := strings.Index(target.Host, ":")
+    var hostWithoutPort string
+    if portPosition >= 0 {
+        hostWithoutPort = target.Host[:portPosition]
+    } else {
+        hostWithoutPort = target.Host
+    }
+
+    if hostWithoutPort == "" {
         errStr := fmt.Sprintf("Error occurred during parsing the url \"%s\": No host recognized.\nAre you sure the url is correct?", formValueUrl)
         http.Error(w, errStr, http.StatusInternalServerError)
         return
     }
 
-    allowed, err := checkTargetAllowed(target.Host, forbiddenNetworks)
+    allowed, err := checkTargetAllowed(hostWithoutPort, forbiddenNetworks)
     if err != nil {
-        errStr := fmt.Sprintf("Error occurred during checking whether the host \"%s\" is blocked: %s.\nAre you sure the url is correct?", target.Host, err.Error())
+        errStr := fmt.Sprintf("Error occurred during checking whether the host \"%s\" is blocked: %s.\nAre you sure the url is correct?", hostWithoutPort, err.Error())
         http.Error(w, errStr, http.StatusInternalServerError)
         return
     }
 
     if !allowed {
-        errStr := fmt.Sprintf("Host \"%s\" of url \"%s\" is blocked.", target.Host, formValueUrl)
+        errStr := fmt.Sprintf("Host \"%s\" of url \"%s\" is blocked.", hostWithoutPort, formValueUrl)
         http.Error(w, errStr, http.StatusForbidden)
         return
     }
