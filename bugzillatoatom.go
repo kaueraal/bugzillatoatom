@@ -245,7 +245,6 @@ func handleConvert(w http.ResponseWriter, r *http.Request, forbiddenNetworks []*
     }
 
     if !allowed {
-
         errStr := fmt.Sprintf("Host \"%s\" of url \"%s\" is blocked.", target.Host, formValueUrl)
         http.Error(w, errStr, http.StatusForbidden)
         return
