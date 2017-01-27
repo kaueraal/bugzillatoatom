@@ -24,10 +24,10 @@ var maxBugRequestRead int64
 // Maximum number of requests per second. Set to something negative to disable
 var maxRequestsPerSecond int
 
-const bugzillaDateFormat = "2006-01-02 15:04:05 -0700"
-
 // Channel to block on during too many requests in a second
 var tooManyRequestsBlocker chan bool = make(chan bool)
+
+const bugzillaDateFormat = "2006-01-02 15:04:05 -0700"
 
 
 // returns the minimum of the given values
