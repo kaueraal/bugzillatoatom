@@ -324,7 +324,7 @@ func (forbiddenNetworks *CIDRList) Set(value string) error {
 func main() {
     port := flag.Uint64("p", 9080, "Port to bind to")
     maxBugRequestReadFlag := flag.Uint64("requestsize", 1 * 1024 * 1024, "Maximum number of bytes to read during a request to another server.") // 1MiB per default
-    flag.IntVar(&maxRequestsPerSecond, "persecond", 1 * 1024 * 1024, "Maximum number of requests to another server per second. Set to -1 to disable.")
+    flag.IntVar(&maxRequestsPerSecond, "persecond", 5, "Maximum number of requests to another server per second. Set to -1 to disable.")
     forbiddenNetworks := CIDRList{}
     flag.Var(&forbiddenNetworks, "b", "IP or Network in CIDR format to block. If a host is available under any blocked IP it will be blocked. Can be given multiple times.")
     flag.Parse()
