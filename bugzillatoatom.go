@@ -104,6 +104,7 @@ func doRequest(target *url.URL) (string, error) {
     defer resp.Body.Close()
 
     if resp.StatusCode != http.StatusOK {
+        log.Printf("Request to \"%s\" returned status code %d (%s).\n", target, resp.StatusCode, http.StatusText(resp.StatusCode))
         errStr := fmt.Sprintf("Request returned status code %d (%s).", resp.StatusCode, http.StatusText(resp.StatusCode))
         return "", errors.New(errStr)
     }
@@ -151,7 +152,7 @@ func convertXmlToAtom(inXml string) (string, error) {
     } else if len(inResult.Comments) == 0 {
         // One comment, the initial one, should always be available
         err := errors.New("Zero comments in bug. There should be at least the initial one.")
-        log.Printf("Error after unmarshalling the xml: %s\n", err)
+        log.Println("Zero comments in bug. There should be at least the initial one.")
         return "", err
     }
 
@@ -224,6 +225,7 @@ func checkTargetAllowed(target string, forbiddenNetworks []*net.IPNet) (bool, er
     for _, ip := range ips {
         for _, ipnet := range forbiddenNetworks {
             if ipnet.Contains(ip) {
+                log.Printf("Blocked target \"%s\" since it's IP %s is contained in blocked network %s.\n", target, ip, ipnet)
                 return false, nil
             }
         }
@@ -242,6 +244,7 @@ func handleConvert(w http.ResponseWriter, r *http.Request, forbiddenNetworks []*
     if r.Header != nil {
         for _, agent := range r.Header["User-Agent"] {
             if strings.Contains(agent, userAgentName) {
+                log.Printf("Blocked request by %s due tue User-Agent \"%s\".\n", r.RemoteAddr, agent)
                 errStr := fmt.Sprintf("User-Agent \"%s\" blocked.", r.Header["User-Agent"])
                 http.Error(w, errStr, http.StatusForbidden)
                 return
@@ -259,6 +262,7 @@ func handleConvert(w http.ResponseWriter, r *http.Request, forbiddenNetworks []*
     target, err := url.Parse(formValueUrl)
 
     if err != nil {
+        log.Printf("Error occurred during parsing the url \"%s\": %s.\n", r.FormValue("url"), err.Error())
         errStr := fmt.Sprintf("Error occurred during parsing the url \"%s\": %s\nAre you sure the url is correct?", r.FormValue("url"), err.Error())
         http.Error(w, errStr, http.StatusInternalServerError)
         return
@@ -278,6 +282,7 @@ func handleConvert(w http.ResponseWriter, r *http.Request, forbiddenNetworks []*
     }
 
     if hostWithoutPort == "" {
+        log.Printf("Error occurred during parsing the url \"%s\": No host recognized.\n", formValueUrl)
         errStr := fmt.Sprintf("Error occurred during parsing the url \"%s\": No host recognized.\nAre you sure the url is correct?", formValueUrl)
         http.Error(w, errStr, http.StatusInternalServerError)
         return
