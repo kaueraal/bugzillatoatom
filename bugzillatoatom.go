@@ -18,6 +18,15 @@ import "encoding/xml"
 import "golang.org/x/tools/blog/atom"
 
 
+const versionMajor = 0
+const versionMinor = 1
+const versionBugfix = 0
+const versionGit = true
+
+const bugzillaDateFormat = "2006-01-02 15:04:05 -0700"
+const userAgentName = "bugzillatoatom"
+
+
 // Maximum size a request for a bug-xml is read in byte. 
 var maxBugRequestRead int64
 
@@ -26,14 +35,6 @@ var maxRequestsPerSecond int
 
 // Channel to block on during too many requests in a second
 var tooManyRequestsBlocker chan bool = make(chan bool)
-
-const versionMajor = 0
-const versionMinor = 1
-const versionBugfix = 0
-const versionGit = true
-
-const bugzillaDateFormat = "2006-01-02 15:04:05 -0700"
-const userAgentName = "bugzillatoatom"
 
 
 // returns the minimum of the given values
