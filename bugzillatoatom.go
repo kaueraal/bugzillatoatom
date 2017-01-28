@@ -46,6 +46,7 @@ func min(a int, b int) int {
     }
 }
 
+// Returns the current version as string in the form major.minor.bugfix(-git)
 func getVersion() string {
     if versionGit {
         return strconv.Itoa(versionMajor) + "." + strconv.Itoa(versionMinor) + "." + strconv.Itoa(versionBugfix) + "-git"
