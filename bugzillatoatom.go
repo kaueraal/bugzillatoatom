@@ -33,6 +33,7 @@ const versionBugfix = 0
 const versionGit = true
 
 const bugzillaDateFormat = "2006-01-02 15:04:05 -0700"
+const userAgentName = "bugzillatoatom"
 
 
 // returns the minimum of the given values
@@ -84,8 +85,16 @@ func readUntilString(r io.Reader, until string, toAppend string) (string, error)
 }
 
 // Requests the bug from given url
-func doRequest(target string) (string, error) {
-    resp, err := http.Get(target)
+func doRequest(target *url.URL) (string, error) {
+    request := http.Request{
+        Method: http.MethodGet,
+        URL: target,
+        Header: http.Header{
+            "User-Agent": { userAgentName + "/" + getVersion() },
+        },
+    }
+
+    resp, err := http.DefaultClient.Do(&request)
 
     if err != nil {
         log.Printf("Error during GET to url \"%s\": %s\n", target, err)
@@ -93,6 +102,11 @@ func doRequest(target string) (string, error) {
     }
 
     defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        errStr := fmt.Sprintf("Request returned status code %d (%s).", resp.StatusCode, http.StatusText(resp.StatusCode))
+        return "", errors.New(errStr)
+    }
 
     // TODO: maybe we should search for something more clever to abort. <attachment could be given by a user in a report
     return readUntilString(resp.Body, "<attachment", "</bug></bugzilla>")
@@ -224,6 +238,17 @@ func handleConvert(w http.ResponseWriter, r *http.Request, forbiddenNetworks []*
         <-tooManyRequestsBlocker
     }
 
+    // Check for a possible recursive call
+    if r.Header != nil {
+        for _, agent := range r.Header["User-Agent"] {
+            if strings.Contains(agent, userAgentName) {
+                errStr := fmt.Sprintf("User-Agent \"%s\" blocked.", r.Header["User-Agent"])
+                http.Error(w, errStr, http.StatusForbidden)
+                return
+            }
+        }
+    }
+
     formValueUrl := r.FormValue("url")
 
     // if the user didn't give a protocol simply assume http
@@ -271,7 +296,7 @@ func handleConvert(w http.ResponseWriter, r *http.Request, forbiddenNetworks []*
         return
     }
 
-    inXml, err := doRequest(target.String())
+    inXml, err := doRequest(target)
     if err != nil {
         errStr := fmt.Sprintf("Error occurred during fetching the url \"%s\": %s\nAre you sure the url is correct?", target.String(), err.Error())
         http.Error(w, errStr, http.StatusInternalServerError)
