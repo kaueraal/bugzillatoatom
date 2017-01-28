@@ -66,8 +66,7 @@ func readUntilString(r io.Reader, until string, toAppend string) (string, error)
         if err == io.EOF {
             eofReached = true
         } else if err != nil {
-            log.Printf("Error during reading from url: %s\n", err)
-            return "", err
+            return "", errors.New(fmt.Sprintf("Error during reading from url: %s", err))
         }
 
         index := strings.Index(str, until)
@@ -97,16 +96,13 @@ func doRequest(target *url.URL) (string, error) {
     resp, err := http.DefaultClient.Do(&request)
 
     if err != nil {
-        log.Printf("Error during GET to url \"%s\": %s\n", target, err)
-        return "", err
+        return "", errors.New(fmt.Sprintf("Error during GET to url \"%s\": %s", target, err))
     }
 
     defer resp.Body.Close()
 
     if resp.StatusCode != http.StatusOK {
-        log.Printf("Request to \"%s\" returned status code %d (%s).\n", target, resp.StatusCode, http.StatusText(resp.StatusCode))
-        errStr := fmt.Sprintf("Request returned status code %d (%s).", resp.StatusCode, http.StatusText(resp.StatusCode))
-        return "", errors.New(errStr)
+        return "", errors.New(fmt.Sprintf("Request returned status code %d (%s).", resp.StatusCode, http.StatusText(resp.StatusCode)))
     }
 
     // TODO: maybe we should search for something more clever to abort. <attachment could be given by a user in a report
@@ -147,19 +143,16 @@ func convertXmlToAtom(inXml string) (string, error) {
     inResult := InResult{}
     err := xml.Unmarshal([]byte(inXml), &inResult)
     if err != nil {
-        log.Printf("Error during unmarshalling the xml: %s\n", err)
-        return "", err
+        return "", errors.New(fmt.Sprintf("Error during unmarshalling the xml: %s", err))
     } else if len(inResult.Comments) == 0 {
         // One comment, the initial one, should always be available
         err := errors.New("Zero comments in bug. There should be at least the initial one.")
-        log.Println("Zero comments in bug. There should be at least the initial one.")
         return "", err
     }
 
     updateTime, err := time.Parse(bugzillaDateFormat, inResult.Comments[len(inResult.Comments)-1].When)
     if err != nil {
-        log.Printf("Couldn't parse updateTime in initial comment: %s\n", err)
-        return "", err
+        return "", errors.New(fmt.Sprintf("Couldn't parse updateTime in initial comment: %s", err))
     }
 
     inUrl := fmt.Sprintf("%s/show_bug.cgi?id=%d", inResult.Urlbase, inResult.BugId)
@@ -177,8 +170,7 @@ func convertXmlToAtom(inXml string) (string, error) {
     for i, comment := range inResult.Comments {
         creationTime, err := time.Parse(bugzillaDateFormat, comment.When)
         if err != nil {
-            log.Printf("Couldn't parse updateTime in comment %d: %s\n", i, err)
-            return "", err
+            return "", errors.New(fmt.Sprintf("Couldn't parse updateTime in comment %d: %s", i, err))
         }
 
         links := []atom.Link{atom.Link{Href: inUrl + "#c" + strconv.Itoa(comment.CommentCount), Rel: "alternate"}}
@@ -201,8 +193,7 @@ func convertXmlToAtom(inXml string) (string, error) {
 
     atom, err := xml.MarshalIndent(feed, "", "\t")
     if err != nil {
-        log.Printf("Error during creating the atom feed: %s\n", err)
-        return "", err
+        return "", errors.New(fmt.Sprintf("Error during creating the atom feed: %s", err))
     }
 
     return xml.Header + string(atom), nil
@@ -244,7 +235,7 @@ func handleConvert(w http.ResponseWriter, r *http.Request, forbiddenNetworks []*
     if r.Header != nil {
         for _, agent := range r.Header["User-Agent"] {
             if strings.Contains(agent, userAgentName) {
-                log.Printf("Blocked request by %s due tue User-Agent \"%s\".\n", r.RemoteAddr, agent)
+                log.Printf("Blocked request by %s due to User-Agent \"%s\".\n", r.RemoteAddr, agent)
                 errStr := fmt.Sprintf("User-Agent \"%s\" blocked.", r.Header["User-Agent"])
                 http.Error(w, errStr, http.StatusForbidden)
                 return
@@ -290,12 +281,14 @@ func handleConvert(w http.ResponseWriter, r *http.Request, forbiddenNetworks []*
 
     allowed, err := checkTargetAllowed(hostWithoutPort, forbiddenNetworks)
     if err != nil {
+        log.Printf("Error occurred during checking whether the host \"%s\" is blocked: %s.", hostWithoutPort, err.Error())
         errStr := fmt.Sprintf("Error occurred during checking whether the host \"%s\" is blocked: %s.\nAre you sure the url is correct?", hostWithoutPort, err.Error())
         http.Error(w, errStr, http.StatusInternalServerError)
         return
     }
 
     if !allowed {
+        // No log.Printf here, as it is reported further in with more information
         errStr := fmt.Sprintf("Host \"%s\" of url \"%s\" is blocked.", hostWithoutPort, formValueUrl)
         http.Error(w, errStr, http.StatusForbidden)
         return
@@ -303,6 +296,7 @@ func handleConvert(w http.ResponseWriter, r *http.Request, forbiddenNetworks []*
 
     inXml, err := doRequest(target)
     if err != nil {
+        log.Printf("Error occurred during fetching the url \"%s\": %s\n", target.String(), err.Error())
         errStr := fmt.Sprintf("Error occurred during fetching the url \"%s\": %s\nAre you sure the url is correct?", target.String(), err.Error())
         http.Error(w, errStr, http.StatusInternalServerError)
         return
@@ -310,6 +304,7 @@ func handleConvert(w http.ResponseWriter, r *http.Request, forbiddenNetworks []*
 
     atom, err := convertXmlToAtom(inXml)
     if err != nil {
+        log.Printf("Error occurred during conversion of the url \"%s\" to atom: %s\n", target.String(), err.Error())
         errStr := fmt.Sprintf("Error occurred during conversion of the url \"%s\" to atom: %s\nAre you sure the url is correct?", target.String(), err.Error())
         http.Error(w, errStr, http.StatusInternalServerError)
         return
