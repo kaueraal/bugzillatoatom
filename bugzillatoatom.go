@@ -344,7 +344,14 @@ func setHttpDefaultClient(forbiddenNetworks []*net.IPNet) {
 		KeepAlive: 30 * time.Second,
 	}
 
-	httpTransport := *(http.DefaultTransport.(*http.Transport))
+	httpTransport := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
 	httpTransport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		port := ""
 		portPosition := strings.Index(addr, ":")
@@ -383,7 +390,7 @@ func setHttpDefaultClient(forbiddenNetworks []*net.IPNet) {
 	// on the other side.
 	http.DefaultClient = &http.Client{
 		Timeout:   time.Second * 30,
-		Transport: &httpTransport,
+		Transport: httpTransport,
 	}
 }
 
