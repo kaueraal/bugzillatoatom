@@ -105,7 +105,6 @@ func doRequest(target *url.URL) (string, error) {
 		return "", errors.New(fmt.Sprintf("Request returned status code %d (%s).", resp.StatusCode, http.StatusText(resp.StatusCode)))
 	}
 
-	// TODO: maybe we should search for something more clever to abort. <attachment could be given by a user in a report
 	return readUntilString(resp.Body, "<attachment", "</bug></bugzilla>")
 }
 
