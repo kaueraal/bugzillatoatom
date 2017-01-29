@@ -7,6 +7,7 @@ import "errors"
 import "net"
 import "net/http"
 import "net/url"
+import "context"
 import "time"
 import "html"
 import "log"
@@ -201,32 +202,34 @@ func convertXmlToAtom(inXml string) (string, error) {
     return xml.Header + string(atom), nil
 }
 
-// Filters not allowed targets, defined by the given networks.
-// Returns false if target is not allowed, otherwise true.
-func checkTargetAllowed(target string, forbiddenNetworks []*net.IPNet) (bool, error) {
-    if forbiddenNetworks == nil {
-        return true, nil
-    }
-
+// Checks for not allowed targets, defined by the given networks.
+// Returns a list of IPs if target is allowed, otherwise
+// throws an error
+func targetAllowedIps(target string, forbiddenNetworks []*net.IPNet) ([]net.IP, error) {
     ips, err := net.LookupIP(target)
 
+    if forbiddenNetworks == nil {
+        return ips, nil
+    }
+
     if err != nil {
-        return false, err
+        return []net.IP{}, err
     }
 
     for _, ip := range ips {
         for _, ipnet := range forbiddenNetworks {
             if ipnet.Contains(ip) {
                 log.Printf("Blocked target \"%s\" since it's IP %s is contained in blocked network %s.\n", target, ip, ipnet)
-                return false, nil
+                errStr := fmt.Sprintf("Target \"%s\" blocked.", target)
+                return []net.IP{}, errors.New(errStr)
             }
         }
     }
 
-    return true, nil
+    return ips, nil
 }
 
-func handleConvert(w http.ResponseWriter, r *http.Request, forbiddenNetworks []*net.IPNet) {
+func handleConvert(w http.ResponseWriter, r *http.Request) {
     // Block during too many requests in the last second
     if maxRequestsPerSecond >= 0 {
         <-tooManyRequestsBlocker
@@ -264,39 +267,6 @@ func handleConvert(w http.ResponseWriter, r *http.Request, forbiddenNetworks []*
     parsedQuery.Set("ctype", "xml")
     target.RawQuery = parsedQuery.Encode()
     target.Fragment = ""
-
-    portPosition := strings.Index(target.Host, ":")
-    var hostWithoutPort string
-    if portPosition >= 0 {
-        hostWithoutPort = target.Host[:portPosition]
-    } else {
-        hostWithoutPort = target.Host
-    }
-
-    if hostWithoutPort == "" {
-        log.Printf("Error occurred during parsing the url \"%s\": No host recognized.\n", formValueUrl)
-        errStr := fmt.Sprintf("Error occurred during parsing the url \"%s\": No host recognized.\nAre you sure the url is correct?", formValueUrl)
-        http.Error(w, errStr, http.StatusInternalServerError)
-        return
-    }
-
-    // Theoretically a circumvention is possible if DNS is compromised.
-    // First return a harmless IP for the check and another one
-    // later for the actual request.
-    allowed, err := checkTargetAllowed(hostWithoutPort, forbiddenNetworks)
-    if err != nil {
-        log.Printf("Error occurred during checking whether the host \"%s\" is blocked: %s.", hostWithoutPort, err.Error())
-        errStr := fmt.Sprintf("Error occurred during checking whether the host \"%s\" is blocked: %s.\nAre you sure the url is correct?", hostWithoutPort, err.Error())
-        http.Error(w, errStr, http.StatusInternalServerError)
-        return
-    }
-
-    if !allowed {
-        // No log.Printf here, as it is reported further in with more information
-        errStr := fmt.Sprintf("Host \"%s\" of url \"%s\" is blocked.", hostWithoutPort, formValueUrl)
-        http.Error(w, errStr, http.StatusForbidden)
-        return
-    }
 
     inXml, err := doRequest(target)
     if err != nil {
@@ -370,6 +340,58 @@ func (forbiddenNetworks *CIDRList) Set(value string) error {
     return err
 }
 
+// Sets the http.DefaultClient to a client with timeout which
+// blocks connections to a host with an IP in forbiddenNetworks
+func setHttpDefaultClient(forbiddenNetworks []*net.IPNet) {
+    // Copy the original DefaultTransport and add our dialer
+    httpDialer := &net.Dialer{
+       Timeout:   30 * time.Second,
+       KeepAlive: 30 * time.Second,
+    }
+
+    httpTransport := *(http.DefaultTransport.(*http.Transport))
+    httpTransport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+        port := ""
+        portPosition := strings.Index(addr, ":")
+
+        if portPosition != -1 {
+            port = addr[portPosition:]
+            addr = addr[:portPosition]
+        }
+
+        ips, err := targetAllowedIps(addr, forbiddenNetworks)
+
+        if err != nil {
+            return nil, err
+        }
+
+        for _, ip := range ips {
+            var ipstr string
+
+            if len(ip.To4()) == net.IPv4len {
+                ipstr = ip.String() + port
+            } else {
+                ipstr = "[" + ip.String() + "]" + port
+            }
+
+            conn, err := httpDialer.DialContext(ctx, network, ipstr)
+
+            if err == nil {
+                return conn, nil
+            }
+        }
+
+        return nil, errors.New("Unable to connect to " + addr)
+    }
+
+    // Add a timeout for the default http.Get() in case something goes wrong
+    // on the other side.
+    http.DefaultClient = &http.Client{
+        Timeout: time.Second * 30,
+        Transport: &httpTransport,
+    }
+}
+
 func main() {
     version := flag.Bool("version", false, "Print the current version and exit")
     port := flag.Uint64("p", 9080, "Port to bind to")
@@ -389,9 +411,7 @@ func main() {
         maxBugRequestRead = int64(*maxBugRequestReadFlag)
     }
 
-    // Add a timeout for the default http.Get() in case something goes wrong
-    // on the oher side.
-    http.DefaultClient = &http.Client{Timeout: time.Second * 30}
+    setHttpDefaultClient(forbiddenNetworks)
 
     for i := 0; i < maxRequestsPerSecond; i++ {
         go func() {
@@ -402,7 +422,7 @@ func main() {
         }()
     }
 
-    http.HandleFunc("/convert", func(w http.ResponseWriter, r *http.Request) { handleConvert(w, r, forbiddenNetworks) })
+    http.HandleFunc("/convert", handleConvert)
     http.HandleFunc("/", handleMain)
 
     log.Fatal(http.ListenAndServe(":" + strconv.FormatUint(*port, 10), nil))
