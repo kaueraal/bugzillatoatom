@@ -99,7 +99,7 @@ func doRequest(target *url.URL) (string, error) {
     resp, err := http.DefaultClient.Do(&request)
 
     if err != nil {
-        return "", errors.New(fmt.Sprintf("Error during GET to url \"%s\": %s", target, err))
+        return "", err
     }
 
     defer resp.Body.Close()
