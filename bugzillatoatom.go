@@ -201,9 +201,8 @@ func convertXmlToAtom(inXml string) (string, error) {
     return xml.Header + string(atom), nil
 }
 
-// Filters not allowed targets, defined by the given networks
-// TODO: Technically an attack is possible. First return a harmless IP
-//       for the check and another one later for the actual request.
+// Filters not allowed targets, defined by the given networks.
+// Returns false if target is not allowed, otherwise true.
 func checkTargetAllowed(target string, forbiddenNetworks []*net.IPNet) (bool, error) {
     if forbiddenNetworks == nil {
         return true, nil
@@ -281,6 +280,9 @@ func handleConvert(w http.ResponseWriter, r *http.Request, forbiddenNetworks []*
         return
     }
 
+    // Theoretically a circumvention is possible if DNS is compromised.
+    // First return a harmless IP for the check and another one
+    // later for the actual request.
     allowed, err := checkTargetAllowed(hostWithoutPort, forbiddenNetworks)
     if err != nil {
         log.Printf("Error occurred during checking whether the host \"%s\" is blocked: %s.", hostWithoutPort, err.Error())
