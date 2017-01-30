@@ -300,15 +300,28 @@ func setHttpDefaultClient(forbiddenNetworks []*net.IPNet) {
 	}
 
 	httpTransport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		host := addr
 		port := ""
-		portPosition := strings.Index(addr, ":")
+		portPosition := strings.LastIndex(addr, ":")
+		bracketPosition := strings.LastIndex(addr, "]")
 
-		if portPosition != -1 {
-			port = addr[portPosition:]
-			addr = addr[:portPosition]
+		// Strip port and brackets, targetAllowedIps/net.LookupIP needs it that way.
+		// This comparison also works if one or both are not found
+		if portPosition > bracketPosition {
+			if bracketPosition == -1 {
+				port = addr[portPosition:]
+				host = addr[:portPosition]
+			} else {
+				port = addr[portPosition:]
+				host = addr[1 : portPosition-1]
+			}
+		} else {
+			if bracketPosition != -1 {
+				host = addr[1 : len(addr)-2]
+			}
 		}
 
-		ips, err := targetAllowedIps(addr, forbiddenNetworks)
+		ips, err := targetAllowedIps(host, forbiddenNetworks)
 
 		if err != nil {
 			return nil, err
