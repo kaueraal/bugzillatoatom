@@ -11,17 +11,9 @@ import "context"
 import "time"
 import "html"
 import "log"
-import "io"
-import "bufio"
-import "bytes"
 import "flag"
 import "encoding/xml"
 import "golang.org/x/tools/blog/atom"
-
-const versionMajor = 0
-const versionMinor = 1
-const versionBugfix = 0
-const versionGit = true
 
 const bugzillaDateFormat = "2006-01-02 15:04:05 -0700"
 const userAgentName = "bugzillatoatom"
@@ -34,54 +26,6 @@ var maxRequestsPerSecond int
 
 // Channel to block on during too many requests in a second
 var tooManyRequestsBlocker chan bool = make(chan bool)
-
-// returns the minimum of the given values
-func min(a int, b int) int {
-	if a <= b {
-		return a
-	} else {
-		return b
-	}
-}
-
-// Returns the current version as string in the form major.minor.bugfix(-git)
-func getVersion() string {
-	if versionGit {
-		return strconv.Itoa(versionMajor) + "." + strconv.Itoa(versionMinor) + "." + strconv.Itoa(versionBugfix) + "-git"
-	} else {
-		return strconv.Itoa(versionMajor) + "." + strconv.Itoa(versionMinor) + "." + strconv.Itoa(versionBugfix)
-	}
-}
-
-// Read from r until given string is found. Appends toAppend afterwards if string
-// is found and in any case returns the result
-func readUntilString(r io.Reader, until string, toAppend string) (string, error) {
-	var buffer bytes.Buffer
-	eofReached := false
-	rs := bufio.NewReader(io.LimitReader(r, maxBugRequestRead))
-
-	for !eofReached {
-		str, err := rs.ReadString('\n')
-
-		if err == io.EOF {
-			eofReached = true
-		} else if err != nil {
-			return "", errors.New(fmt.Sprintf("Error during reading from url: %s", err))
-		}
-
-		index := strings.Index(str, until)
-
-		if index == -1 {
-			buffer.WriteString(str)
-		} else {
-			buffer.WriteString(str[:index])
-			buffer.WriteString(toAppend)
-			break
-		}
-	}
-
-	return buffer.String(), nil
-}
 
 // Requests the bug from given url
 func doRequest(target *url.URL) (string, error) {
