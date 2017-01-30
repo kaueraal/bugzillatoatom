@@ -146,7 +146,7 @@ func convertXmlToAtom(inXml string) (string, error) {
 // Checks for not allowed targets, defined by the given networks.
 // Returns a list of IPs if target is allowed, otherwise
 // throws an error
-func targetAllowedIps(target string, forbiddenNetworks []*net.IPNet) ([]net.IP, error) {
+func targetAllowedIPs(target string, forbiddenNetworks []*net.IPNet) ([]net.IP, error) {
 	ips, err := net.LookupIP(target)
 
 	if forbiddenNetworks == nil {
@@ -321,7 +321,7 @@ func setHttpDefaultClient(forbiddenNetworks []*net.IPNet) {
 			}
 		}
 
-		ips, err := targetAllowedIps(host, forbiddenNetworks)
+		ips, err := targetAllowedIPs(host, forbiddenNetworks)
 
 		if err != nil {
 			return nil, err
