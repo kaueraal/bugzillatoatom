@@ -341,8 +341,8 @@ func setHttpDefaultClient(forbiddenNetworks []*net.IPNet) {
 }
 
 func main() {
-	version := flag.Bool("version", false, "Print the current version and exit")
-	port := flag.Uint64("p", 33916, "Port to bind to")
+	version := flag.Bool("version", false, "Print the current version and exit.")
+	port := flag.Uint64("p", 33916, "Port to bind to.")
 	maxBugRequestReadFlag := flag.Uint64("requestsize", 1*1024*1024, "Maximum number of bytes to read during a request to another server.") // 1MiB per default
 	flag.IntVar(&maxRequestsPerSecond, "persecond", 5, "Maximum number of requests to another server per second. Set to -1 to disable.")
 	forbiddenNetworks := CIDRList{}
