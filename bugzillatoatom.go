@@ -49,7 +49,9 @@ func doRequest(target *url.URL) (string, error) {
 		return "", errors.New(fmt.Sprintf("Request returned status code %d (%s).", resp.StatusCode, http.StatusText(resp.StatusCode)))
 	}
 
-	return readUntilString(resp.Body, "<attachment", "</bug></bugzilla>")
+	// Read until "<attachment". If this is found close the tags. In any case the string
+	// is only read if in the first 1024 bytes the word "bugzilla" appears.
+	return readUntilString(resp.Body, "<attachment", "</bug></bugzilla>", "bugzilla", 1024)
 }
 
 // converts the given xml string into an atom feed
