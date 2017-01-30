@@ -106,8 +106,7 @@ func (r *readContainsStringReader) Read(p []byte) (int, error) {
 	for i := 0; i < n; {
 		r.counter += 1
 		if r.counter > r.count {
-			errStr := fmt.Sprintf("Couldn't find string \"%s\" in the first %d bytes.", r.str, r.count)
-			return 0, errors.New(errStr)
+			goto didntFind
 		}
 
 		if p[i] != r.str[r.strpos] {
@@ -126,7 +125,16 @@ func (r *readContainsStringReader) Read(p []byte) (int, error) {
 		}
 	}
 
+	// Check for EOF. If one happened, but we are here we didn't find the string
+	if err == io.EOF {
+		goto didntFind
+	}
+
 	return n, err
+
+didntFind:
+	errStr := fmt.Sprintf("Couldn't find string \"%s\" in the first %d bytes.", r.str, r.count)
+	return 0, errors.New(errStr)
 }
 
 // Read from r until EOF or the given string is found. Appends toAppend afterwards if string
