@@ -225,6 +225,8 @@ func handleConvert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	header := w.Header()
+	header["Content-Type"] = append(header["Content-Type"], "application/atom+xml; charset=utf-8")
 	fmt.Fprintf(w, "%s", atom)
 }
 
