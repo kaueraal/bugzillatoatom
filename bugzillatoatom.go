@@ -12,6 +12,7 @@ import "time"
 import "html"
 import "log"
 import "flag"
+import "regexp"
 import "encoding/xml"
 import "golang.org/x/tools/blog/atom"
 
@@ -53,6 +54,16 @@ func doRequest(target *url.URL) (string, error) {
 	// is only read if in the first 1024 bytes the word "bugzilla" appears.
 	return readUntilString(resp.Body, "<attachment", "</bug></bugzilla>", "bugzilla", 1024)
 }
+
+// Regex for detection of bug numbers in comments. Used in convertXmlToAtom.
+// The pre region is used so we don't recognize escaped html as &#1234; as bug number.
+var bugNumberRegex *regexp.Regexp = regexp.MustCompile(`(?P<pre>\A|[^&])(?P<all>(?:[Bb]ug |#)(?P<num>\d+))`)
+
+// Regex for detection of attachment uploads in comments. Used in convertXmlToAtom.
+var attachmentUploadRegex *regexp.Regexp = regexp.MustCompile(`(?P<pre>\ACreated )(?P<all>attachment (?P<num>\d+))`)
+
+// Somewhat crude regex for detection of most urls in comments. Used in convertXmlToAtom.
+var urlRegex *regexp.Regexp = regexp.MustCompile(`\b(?P<all>\w+://\S+)`)
 
 // converts the given xml string into an atom feed
 func convertXmlToAtom(inXml string) (string, error) {
@@ -101,6 +112,7 @@ func convertXmlToAtom(inXml string) (string, error) {
 	}
 
 	inUrl := fmt.Sprintf("%sshow_bug.cgi?id=%d", inResult.Urlbase, inResult.BugId)
+	bugUrl := fmt.Sprintf("%sshow_bug.cgi?id=", inResult.Urlbase)
 	attachmentUrl := fmt.Sprintf("%sattachment.cgi?id=", inResult.Urlbase)
 
 	feed := &atom.Feed{
@@ -123,13 +135,19 @@ func convertXmlToAtom(inXml string) (string, error) {
 			links = append(links, atom.Link{Href: attachmentUrl + strconv.Itoa(comment.AttachmentID), Rel: "enclosure"})
 		}
 
+		body := html.EscapeString(comment.Text)
+		body = urlRegex.ReplaceAllString(body, `<a href="${all}">${all}</a>`)
+		body = attachmentUploadRegex.ReplaceAllString(body, `${pre}<a href="`+attachmentUrl+`${num}">${all}</a>`)
+		body = bugNumberRegex.ReplaceAllString(body, `${pre}<a href="`+bugUrl+`${num}">${all}</a>`)
+		body = `<pre style="white-space: pre-wrap">` + body + "</pre>"
+
 		entry := &atom.Entry{
 			Title:     getFormatedName(comment.Who) + ": " + comment.Text[:min(100, len(comment.Text))],
 			ID:        inUrl + "#c" + strconv.Itoa(comment.CommentCount),
 			Link:      links,
 			Published: atom.Time(creationTime),
 			Author:    &atom.Person{Name: getFormatedName(comment.Who)},
-			Content:   &atom.Text{Type: "html", Body: `<pre style="white-space: pre-wrap">` + html.EscapeString(comment.Text) + "</pre>"},
+			Content:   &atom.Text{Type: "html", Body: body},
 		}
 
 		feed.Entry = append(feed.Entry, entry)
