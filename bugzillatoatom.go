@@ -146,6 +146,7 @@ func convertXmlToAtom(inXml string) (string, error) {
 			ID:        inUrl + "#c" + strconv.Itoa(comment.CommentCount),
 			Link:      links,
 			Published: atom.Time(creationTime),
+			Updated:   atom.Time(creationTime),
 			Author:    &atom.Person{Name: getFormatedName(comment.Who)},
 			Content:   &atom.Text{Type: "html", Body: body},
 		}
