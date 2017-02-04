@@ -100,8 +100,8 @@ func convertXmlToAtom(inXml string) (string, error) {
 		return "", errors.New(fmt.Sprintf("Couldn't parse updateTime in initial comment: %s", err))
 	}
 
-	inUrl := fmt.Sprintf("%s/show_bug.cgi?id=%d", inResult.Urlbase, inResult.BugId)
-	attachmentUrl := fmt.Sprintf("%s/attachment.cgi?id=", inResult.Urlbase)
+	inUrl := fmt.Sprintf("%sshow_bug.cgi?id=%d", inResult.Urlbase, inResult.BugId)
+	attachmentUrl := fmt.Sprintf("%sattachment.cgi?id=", inResult.Urlbase)
 
 	feed := &atom.Feed{
 		Title:   inResult.Description,
