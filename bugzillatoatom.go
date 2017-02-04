@@ -129,7 +129,7 @@ func convertXmlToAtom(inXml string) (string, error) {
 			Link:      links,
 			Published: atom.Time(creationTime),
 			Author:    &atom.Person{Name: getFormatedName(comment.Who)},
-			Content:   &atom.Text{Type: "html", Body: strings.Replace(html.EscapeString(comment.Text), "\n", "<br>", -1)},
+			Content:   &atom.Text{Type: "html", Body: `<pre style="white-space: pre-wrap">` + html.EscapeString(comment.Text) + "</pre>"},
 		}
 
 		feed.Entry = append(feed.Entry, entry)
