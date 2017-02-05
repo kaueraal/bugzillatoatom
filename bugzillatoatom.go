@@ -148,7 +148,9 @@ func convertXmlToAtom(inXml string) (string, error) {
 		if len(title) > maxTitleLength {
 			// Find latest space starting three positions before maxTitleLength and cut off
 			// If the space is too far away simply cut off without a nice cut.
-			lastSpace := strings.LastIndex(title[:maxTitleLength-3], " ")
+			// Find lastSpace with maxTitleLength-2, because if this position is a
+			// space it is cut out, as title[:lastspace] always cuts at least one char.
+			lastSpace := strings.LastIndex(title[:maxTitleLength-2], " ")
 
 			if lastSpace < maxTitleLength*3/4 {
 				title = title[:maxTitleLength-3] + "..."
