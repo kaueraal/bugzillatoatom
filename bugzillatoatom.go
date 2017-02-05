@@ -132,7 +132,7 @@ func convertXmlToAtom(inXml string) (string, error) {
 
 		links := []atom.Link{atom.Link{Href: inUrl + "#c" + strconv.Itoa(comment.CommentCount), Rel: "alternate"}}
 		if comment.AttachmentID != 0 {
-			links = append(links, atom.Link{Href: attachmentUrl + strconv.Itoa(comment.AttachmentID), Rel: "enclosure"})
+			links = append(links, atom.Link{Href: attachmentUrl + strconv.Itoa(comment.AttachmentID), Rel: "enclosure", Title: "Attachment"})
 		}
 
 		body := html.EscapeString(comment.Text)
