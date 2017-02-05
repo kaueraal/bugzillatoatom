@@ -141,8 +141,24 @@ func convertXmlToAtom(inXml string) (string, error) {
 		body = bugNumberRegex.ReplaceAllString(body, `${pre}<a href="`+bugUrl+`${num}">${all}</a>`)
 		body = `<pre style="white-space: pre-wrap">` + body + "</pre>"
 
+		// We don't limit the title here too much, because comment.Who can be too
+		// large as well. Just to be sure: It needs to be least 3 for the dots.
+		maxTitleLength := 100
+		title := getFormatedName(comment.Who) + ": " + comment.Text[:min(maxTitleLength, len(comment.Text))]
+		if len(title) > maxTitleLength {
+			// Find latest space starting three positions before maxTitleLength and cut off
+			// If the space is too far away simply cut off without a nice cut.
+			lastSpace := strings.LastIndex(title[:maxTitleLength-3], " ")
+
+			if lastSpace < maxTitleLength*3/4 {
+				title = title[:maxTitleLength-3] + "..."
+			} else {
+				title = title[:lastSpace] + "..."
+			}
+		}
+
 		entry := &atom.Entry{
-			Title:     getFormatedName(comment.Who) + ": " + comment.Text[:min(100, len(comment.Text))],
+			Title:     title,
 			ID:        inUrl + "#c" + strconv.Itoa(comment.CommentCount),
 			Link:      links,
 			Published: atom.Time(creationTime),
