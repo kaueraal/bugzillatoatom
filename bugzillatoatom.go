@@ -250,6 +250,13 @@ func handleConvert(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleMain(w http.ResponseWriter, r *http.Request) {
+
+	if r.URL.Path != "/" {
+		errStr := fmt.Sprintf("Error %d: Path \"%s\" not found.", http.StatusNotFound, r.URL.Path)
+		http.Error(w, errStr, http.StatusNotFound)
+		return
+	}
+
 	fmt.Fprintf(w, "%s", `
 <html>
 <head>
