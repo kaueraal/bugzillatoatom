@@ -281,10 +281,11 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 <title>bugzillatoatom</title>
 </head>
 <body bgcolor="#FFFFFF">
-<form action=convert>
-    Convert a Bugzilla bug entry into an Atom feed. Enter an url:
-    <input type="text" name="url">
-    <div style="position: absolute; right: 0px; bottom: 0px; margin: 8px">via <a href="https://github.com/kaueraal/bugzillatoatom">bugzillatoatom</a></div>
+	<form action=convert>
+		Convert a Bugzilla bug entry into an Atom feed. Enter an url:
+		<input type="text" name="url">
+	</form>
+	<div style="position: absolute; right: 0px; bottom: 0px; margin: 8px">via <a href="https://github.com/kaueraal/bugzillatoatom">bugzillatoatom</a></div>
 </body>
 </html>
 `)
