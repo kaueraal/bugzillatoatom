@@ -225,7 +225,7 @@ func handleConvert(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	formValueUrl := r.FormValue("url")
+	formValueUrl := strings.Trim(r.FormValue("url"), " ")
 
 	// if the user didn't give a protocol simply assume http
 	if !(strings.HasPrefix(formValueUrl, "http://") || strings.HasPrefix(formValueUrl, "https://")) {
