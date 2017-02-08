@@ -237,7 +237,7 @@ func handleConvert(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error occurred during parsing the url \"%s\": %s.\n", r.FormValue("url"), err.Error())
 		errStr := fmt.Sprintf("Error occurred during parsing the url \"%s\": %s\nAre you sure the url is correct?", r.FormValue("url"), err.Error())
-		http.Error(w, errStr, http.StatusInternalServerError)
+		http.Error(w, errStr, http.StatusBadRequest)
 		return
 	}
 
