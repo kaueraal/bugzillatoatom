@@ -14,7 +14,7 @@ import "log"
 import "flag"
 import "regexp"
 import "encoding/xml"
-import "bugzillatoatom/throttling"
+import "github.com/kaueraal/bugzillatoatom/throttling"
 import "golang.org/x/tools/blog/atom"
 
 const bugzillaDateFormat = "2006-01-02 15:04:05 -0700"
