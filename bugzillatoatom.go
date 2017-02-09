@@ -14,6 +14,7 @@ import "log"
 import "flag"
 import "regexp"
 import "encoding/xml"
+import "bugzillatoatom/throttling"
 import "golang.org/x/tools/blog/atom"
 
 const bugzillaDateFormat = "2006-01-02 15:04:05 -0700"
@@ -25,8 +26,8 @@ var maxBugRequestRead int64
 // Maximum number of requests per second. Set to something negative to disable
 var maxRequestsPerSecond int
 
-// Channel to block on during too many requests in a second
-var tooManyRequestsBlocker chan bool = make(chan bool)
+// throttler to block on during too many requests in a second
+var throttler *throttling.Throttler
 
 // Requests the bug from given url
 func doRequest(target *url.URL) (string, error) {
@@ -208,11 +209,6 @@ func targetAllowedIPs(target string, forbiddenNetworks []*net.IPNet) ([]net.IP, 
 }
 
 func handleConvert(w http.ResponseWriter, r *http.Request) {
-	// Block during too many requests in the last second
-	if maxRequestsPerSecond >= 0 {
-		<-tooManyRequestsBlocker
-	}
-
 	// Check for a possible recursive call
 	if r.Header != nil {
 		for _, agent := range r.Header["User-Agent"] {
@@ -245,6 +241,23 @@ func handleConvert(w http.ResponseWriter, r *http.Request) {
 	parsedQuery.Set("ctype", "xml")
 	target.RawQuery = parsedQuery.Encode()
 	target.Fragment = ""
+
+	// Block during too many requests in the last second.
+	// Try to handle if a client disconnects while we block.
+	if maxRequestsPerSecond >= 0 {
+		// The conversion should never fail, unless the go developers break their API
+		closeChan := w.(http.CloseNotifier).CloseNotify()
+
+		throttler.RequestTicket()
+
+		select {
+		case <-closeChan:
+			throttler.ReturnUnusedTicket()
+			return
+		default:
+			throttler.UseTicket()
+		}
+	}
 
 	inXml, err := doRequest(target)
 	if err != nil {
@@ -423,13 +436,8 @@ func main() {
 
 	setHttpDefaultClient(forbiddenNetworks)
 
-	for i := 0; i < maxRequestsPerSecond; i++ {
-		go func() {
-			for {
-				tooManyRequestsBlocker <- true
-				time.Sleep(time.Second)
-			}
-		}()
+	if maxRequestsPerSecond > 0 {
+		throttler = throttling.NewThrottler(uint(maxRequestsPerSecond))
 	}
 
 	server := http.Server{
