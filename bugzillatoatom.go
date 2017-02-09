@@ -448,7 +448,7 @@ func main() {
 
 	setHttpDefaultClient(forbiddenNetworks)
 
-	if maxRequestsPerSecond > 0 {
+	if maxRequestsPerSecond >= 0 {
 		throttler = throttling.NewThrottler(uint(maxRequestsPerSecond))
 	}
 
