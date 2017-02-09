@@ -14,6 +14,8 @@ import "log"
 import "flag"
 import "regexp"
 import "encoding/xml"
+import "encoding/hex"
+import "crypto/sha256"
 import "github.com/kaueraal/bugzillatoatom/throttling"
 import "golang.org/x/tools/blog/atom"
 
@@ -275,8 +277,18 @@ func handleConvert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Generate and check Etag
+	etagHash := sha256.Sum256([]byte(atom))
+	etag := "\"" + hex.EncodeToString(etagHash[:]) + "\""
+
+	if r.Header.Get("If-None-Match") == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+
 	header := w.Header()
-	header["Content-Type"] = append(header["Content-Type"], "application/atom+xml; charset=utf-8")
+	header.Set("Etag", etag)
+	header.Set("Content-Type", "application/atom+xml; charset=utf-8")
 	fmt.Fprintf(w, "%s", atom)
 }
 
