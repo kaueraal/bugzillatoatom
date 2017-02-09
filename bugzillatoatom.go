@@ -444,6 +444,9 @@ func main() {
 		ReadTimeout: 30 * time.Second,
 		Addr:        ":" + strconv.FormatUint(*port, 10),
 	}
+
+	// Disable keepalives, as they can interfere with the CloseNotifier interface (as of 2017-02-09)
+	server.SetKeepAlivesEnabled(false)
 	http.HandleFunc("/convert", handleConvert)
 	http.HandleFunc("/", handleMain)
 
