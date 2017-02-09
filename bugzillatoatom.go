@@ -432,8 +432,12 @@ func main() {
 		}()
 	}
 
+	server := http.Server{
+		ReadTimeout: 30 * time.Second,
+		Addr:        ":" + strconv.FormatUint(*port, 10),
+	}
 	http.HandleFunc("/convert", handleConvert)
 	http.HandleFunc("/", handleMain)
 
-	log.Fatal(http.ListenAndServe(":"+strconv.FormatUint(*port, 10), nil))
+	log.Fatal(server.ListenAndServe())
 }
