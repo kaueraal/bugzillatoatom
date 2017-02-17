@@ -348,6 +348,49 @@ func parseIPOrCIDR(str string) (*net.IPNet, error) {
 // To allow forbiddenNetworks to be parsed as argument
 type CIDRList []*net.IPNet
 
+// Is quite dump. Does not detect IPv4 embedding in IPv6, etc.
+func networkContainsOther(network *net.IPNet, other *net.IPNet) bool {
+	if len(network.IP) != len(other.IP) {
+		return false
+	}
+
+	for i := 0; i < len(network.IP); i++ {
+		// other might have more bits in the mask set, but network not.
+		if network.Mask[i]|other.Mask[i] != other.Mask[i] {
+			return false
+		}
+
+		maskedNetwork := network.IP[i] & network.Mask[i]
+		maskedOther := other.IP[i] & network.Mask[i]
+
+		if maskedNetwork != maskedOther {
+			return false
+		}
+	}
+
+	return true
+}
+
+// This function assumes that no network in forbiddenNetworks contains another.
+// This function makes sure that this is true after adding the new network.
+func (forbiddenNetworks *CIDRList) addNetwork(network *net.IPNet) {
+	// Try to find out, whether some network contains the new one or other way round
+	newForbiddenNetworks := CIDRList{}
+
+	for _, n := range *forbiddenNetworks {
+		if networkContainsOther(n, network) {
+			// No change needed
+			return
+		} else if !networkContainsOther(network, n) {
+			newForbiddenNetworks = append(newForbiddenNetworks, n)
+		}
+	}
+
+	newForbiddenNetworks = append(newForbiddenNetworks, network)
+
+	*forbiddenNetworks = newForbiddenNetworks
+}
+
 func (forbiddenNetworks *CIDRList) String() string {
 	strs := []string{}
 
@@ -362,7 +405,7 @@ func (forbiddenNetworks *CIDRList) Set(value string) error {
 	ipnet, err := parseIPOrCIDR(value)
 
 	if err == nil {
-		*forbiddenNetworks = append(*forbiddenNetworks, ipnet)
+		forbiddenNetworks.addNetwork(ipnet)
 	}
 
 	return err
@@ -383,7 +426,7 @@ func (forbiddenNetworks *CIDRList) blockLocalNetworks() {
 			log.Fatalln("Parsing of local network/IP " + blockedNetwork.String() + " failed. That should never happen.")
 		}
 
-		*forbiddenNetworks = append(*forbiddenNetworks, ipnet)
+		forbiddenNetworks.addNetwork(ipnet)
 	}
 
 	// We still block networks from a list, since the user might add networks
@@ -395,7 +438,7 @@ func (forbiddenNetworks *CIDRList) blockLocalNetworks() {
 			log.Fatalln("Parsing of integrated network " + blockedNetwork + " failed. That should never happen.")
 		}
 
-		*forbiddenNetworks = append(*forbiddenNetworks, ipnet)
+		forbiddenNetworks.addNetwork(ipnet)
 	}
 }
 
