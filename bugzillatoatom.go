@@ -23,7 +23,7 @@ import "golang.org/x/tools/blog/atom"
 const bugzillaDateFormat = "2006-01-02 15:04:05 -0700"
 const userAgentName = "bugzillatoatom"
 
-// Networks which are per default blocked
+// Networks which are by default blocked
 var blockedLocalNetworks []string = []string{
 	"127.0.0.0/8",
 	"10.0.0.0/8",
