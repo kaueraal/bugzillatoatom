@@ -22,6 +22,18 @@ import "golang.org/x/tools/blog/atom"
 const bugzillaDateFormat = "2006-01-02 15:04:05 -0700"
 const userAgentName = "bugzillatoatom"
 
+// Networks which are per default blocked
+var blockedLocalNetworks []string = []string{
+	"127.0.0.0/8",
+	"10.0.0.0/8",
+	"172.16.0.0/12",
+	"192.168.0.0/16",
+	"::1/128",
+	"fc00::/7",
+	"fe80::/10",
+	"fec0::/10", // deprecated, but just be sure...
+}
+
 // Maximum size a request for a bug-xml is read in byte.
 var maxBugRequestRead int64
 
@@ -355,6 +367,37 @@ func (forbiddenNetworks *CIDRList) Set(value string) error {
 	return err
 }
 
+// Blocks known local networks and all networks currently known to all interfaces.
+// This is only somewhat effective, as the known networks can change later on.
+func (forbiddenNetworks *CIDRList) blockLocalNetworks() {
+	interfaceAddrs, err := net.InterfaceAddrs()
+	if err != nil {
+		log.Fatalln("Getting of used IPs failed!")
+	}
+
+	for _, blockedNetwork := range interfaceAddrs {
+		ipnet, err := parseIPOrCIDR(blockedNetwork.String())
+
+		if err != nil {
+			log.Fatalln("Parsing of local network/IP " + blockedNetwork.String() + " failed. That should never happen.")
+		}
+
+		*forbiddenNetworks = append(*forbiddenNetworks, ipnet)
+	}
+
+	// We still block networks from a list, since the user might add networks
+	// after bugzillatoatom is started
+	for _, blockedNetwork := range blockedLocalNetworks {
+		ipnet, err := parseIPOrCIDR(blockedNetwork)
+
+		if err != nil {
+			log.Fatalln("Parsing of integrated network " + blockedNetwork + " failed. That should never happen.")
+		}
+
+		*forbiddenNetworks = append(*forbiddenNetworks, ipnet)
+	}
+}
+
 // Sets the http.DefaultClient to a client with timeout which
 // blocks connections to a host with an IP in forbiddenNetworks
 func setHttpDefaultClient(forbiddenNetworks []*net.IPNet) {
@@ -433,7 +476,8 @@ func main() {
 	maxBugRequestReadFlag := flag.Uint64("requestsize", 1*1024*1024, "Maximum number of bytes to read during a request to another server.") // 1MiB per default
 	flag.IntVar(&maxRequestsPerSecond, "persecond", 5, "Maximum number of requests to another server per second. Set to -1 to disable.")
 	forbiddenNetworks := CIDRList{}
-	flag.Var(&forbiddenNetworks, "b", "IP or network in CIDR format to block. If a host is available under any blocked IP it will be blocked. Can be given multiple times.\n\tYou probably want to exclude localhost or local networks both on IPv4 and IPv6.")
+	flag.Var(&forbiddenNetworks, "b", "IP or network in CIDR format to block. If a host is available under any blocked IP it will be blocked. Can be given multiple times.\n\tYou probably want to exclude localhost or local networks both on IPv4 and IPv6. These are blocked by default unless you give -nolocalblock.")
+	nolocalblock := flag.Bool("nolocalblock", false, "Disables default blocking of local networks and IPs. If this flag is given you can add those again via -b.\n\tThis includes all IPs and networks of local interfaces and the networks "+strings.Join(blockedLocalNetworks, ", ")+".")
 	flag.Parse()
 
 	if *version {
@@ -444,6 +488,11 @@ func main() {
 		log.Fatalln("Too large requestsize")
 	} else {
 		maxBugRequestRead = int64(*maxBugRequestReadFlag)
+	}
+
+	// Block local networks + IPs
+	if !(*nolocalblock) {
+		forbiddenNetworks.blockLocalNetworks()
 	}
 
 	setHttpDefaultClient(forbiddenNetworks)

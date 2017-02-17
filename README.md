@@ -44,14 +44,18 @@ Afterwards you should find the executable in `$GOPATH/bin/`.
 ```
 Usage of ./bugzillatoatom:
   -b value
-        IP or network in CIDR format to block. If a host is available under any blocked IP it will be blocked. Can be given multiple times.
-    You probably want to exclude localhost or local networks both on IPv4 and IPv6.
+      IP or network in CIDR format to block. If a host is available under any blocked IP it will be blocked. Can be given multiple times.
+  You probably want to exclude localhost or local networks both on IPv4 and IPv6. These are blocked by default unless you give -nolocalblock.
+  -nolocalblock
+      Disables default blocking of local networks and IPs. If this flag is given you can add those again via -b.
+  This includes all IPs and networks of local interfaces and the networks 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, ::1/128, fc00::/7, fe80::/10, fec0::/10.
   -p uint
-        Port to bind to. (default 33916)
+      Port to bind to. (default 33916)
   -persecond int
-        Maximum number of requests to another server per second. Set to -1 to disable. (default 5)
+      Maximum number of requests to another server per second. Set to -1 to disable. (default 5)
   -requestsize uint
-        Maximum number of bytes to read during a request to another server. (default 1048576)
+      Maximum number of bytes to read during a request to another server. (default 1048576)
   -version
-        Print the current version and exit.
+      Print the current version and exit.
+
 ```
