@@ -433,7 +433,7 @@ func main() {
 	maxBugRequestReadFlag := flag.Uint64("requestsize", 1*1024*1024, "Maximum number of bytes to read during a request to another server.") // 1MiB per default
 	flag.IntVar(&maxRequestsPerSecond, "persecond", 5, "Maximum number of requests to another server per second. Set to -1 to disable.")
 	forbiddenNetworks := CIDRList{}
-	flag.Var(&forbiddenNetworks, "b", "IP or Network in CIDR format to block. If a host is available under any blocked IP it will be blocked. Can be given multiple times.\n\tYou probably want to exclude localhost or local networks both on IPv4 and IPv6.")
+	flag.Var(&forbiddenNetworks, "b", "IP or network in CIDR format to block. If a host is available under any blocked IP it will be blocked. Can be given multiple times.\n\tYou probably want to exclude localhost or local networks both on IPv4 and IPv6.")
 	flag.Parse()
 
 	if *version {
