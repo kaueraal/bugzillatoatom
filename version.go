@@ -5,7 +5,7 @@ import "strconv"
 const versionMajor = 0
 const versionMinor = 1
 const versionBugfix = 0
-const versionGit = true
+const versionGit = false
 
 // Returns the current version as string in the form major.minor.bugfix(-git)
 func getVersion() string {
