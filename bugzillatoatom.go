@@ -496,6 +496,10 @@ func main() {
 		forbiddenNetworks.blockLocalNetworks()
 	}
 
+	for _, ipnet := range forbiddenNetworks {
+		log.Printf("Network %s blocked\n", ipnet)
+	}
+
 	setHttpDefaultClient(forbiddenNetworks)
 
 	if maxRequestsPerSecond >= 0 {
