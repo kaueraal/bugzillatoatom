@@ -13,6 +13,7 @@ import "html"
 import "log"
 import "flag"
 import "regexp"
+import "sort"
 import "encoding/xml"
 import "encoding/hex"
 import "crypto/sha256"
@@ -348,6 +349,34 @@ func parseIPOrCIDR(str string) (*net.IPNet, error) {
 // To allow forbiddenNetworks to be parsed as argument
 type CIDRList []*net.IPNet
 
+func (xs CIDRList) Len() int {
+	return len(xs)
+}
+
+func (xs CIDRList) Swap(i int, j int) {
+	xs[i], xs[j] = xs[j], xs[i]
+}
+
+func (xs CIDRList) Less(i int, j int) bool {
+	if len(xs[i].IP) != len(xs[j].IP) {
+		return len(xs[i].IP) < len(xs[j].IP)
+	}
+
+	for k := 0; k < len(xs[i].IP); k++ {
+		if xs[i].Mask[k] != xs[j].Mask[k] {
+			return xs[i].Mask[k] < xs[j].Mask[k]
+		}
+	}
+
+	for k := 0; k < len(xs[i].IP); k++ {
+		if xs[i].IP[k] != xs[j].IP[k] {
+			return xs[i].IP[k] < xs[j].IP[k]
+		}
+	}
+
+	return false
+}
+
 // Is quite dump. Does not detect IPv4 embedding in IPv6, etc.
 func networkContainsOther(network *net.IPNet, other *net.IPNet) bool {
 	if len(network.IP) != len(other.IP) {
@@ -538,6 +567,8 @@ func main() {
 	if !(*nolocalblock) {
 		forbiddenNetworks.blockLocalNetworks()
 	}
+
+	sort.Sort(forbiddenNetworks)
 
 	for _, ipnet := range forbiddenNetworks {
 		log.Printf("Network %s blocked\n", ipnet)
