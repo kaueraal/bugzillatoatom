@@ -147,7 +147,7 @@ func convertXmlToAtom(inXml string) (string, error) {
 			return "", errors.New(fmt.Sprintf("Couldn't parse updateTime in comment %d: %s", i, err))
 		}
 
-		links := []atom.Link{atom.Link{Href: inUrl + "#c" + strconv.Itoa(comment.CommentCount), Rel: "alternate"}}
+		links := []atom.Link{atom.Link{Href: inUrl + "#c" + strconv.Itoa(i), Rel: "alternate"}}
 		if comment.AttachmentID != 0 {
 			links = append(links, atom.Link{Href: attachmentUrl + strconv.Itoa(comment.AttachmentID), Rel: "enclosure", Title: "Attachment"})
 		}
