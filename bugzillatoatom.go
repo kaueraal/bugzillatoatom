@@ -99,7 +99,7 @@ func convertXmlToAtom(inXml string) (string, error) {
 
 	type Comment struct {
 		CommentId    int    `xml:"commentid"`
-		CommentCount int    `xml:"comment_count"`
+		CommentCount *int    `xml:"comment_count"`
 		AttachmentID int    `xml:"attachid"`
 		Who          Who    `xml:"who"`
 		When         string `xml:"bug_when"`
@@ -147,7 +147,13 @@ func convertXmlToAtom(inXml string) (string, error) {
 			return "", errors.New(fmt.Sprintf("Couldn't parse updateTime in comment %d: %s", i, err))
 		}
 
-		links := []atom.Link{atom.Link{Href: inUrl + "#c" + strconv.Itoa(comment.CommentCount), Rel: "alternate"}}
+		// Some xmls do not contain comment_count for whatever reason
+		if comment.CommentCount == nil {
+			comment.CommentCount = new(int)
+			*comment.CommentCount = i
+		}
+
+		links := []atom.Link{atom.Link{Href: inUrl + "#c" + strconv.Itoa(*comment.CommentCount), Rel: "alternate"}}
 		if comment.AttachmentID != 0 {
 			links = append(links, atom.Link{Href: attachmentUrl + strconv.Itoa(comment.AttachmentID), Rel: "enclosure", Title: "Attachment"})
 		}
@@ -178,7 +184,7 @@ func convertXmlToAtom(inXml string) (string, error) {
 
 		entry := &atom.Entry{
 			Title:     title,
-			ID:        inUrl + "#c" + strconv.Itoa(comment.CommentCount),
+			ID:        inUrl + "#c" + strconv.Itoa(*comment.CommentCount),
 			Link:      links,
 			Published: atom.Time(creationTime),
 			Updated:   atom.Time(creationTime),
