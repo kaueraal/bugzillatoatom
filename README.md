@@ -6,9 +6,6 @@ It allows tracking bugs via your favorite feed reader, without registering at ev
 bugzillatoatom is ready to use, just download and run it.
 It includes a basic web user interface at port 33916, where you simply can paste your Bugzilla bug url and get the Atom feed back.
 
-If you are too lazy to set up your own instance you can use the public instance at [bugzillatoatom.affine.space](https://bugzillatoatom.affine.space/).
-This instance is somewhat throttled, please be nice.
-
 
 ## Features
 
