@@ -30,7 +30,7 @@ Nevertheless you probably want to set bugzillatoatom behind a caching http proxy
 You need a somewhat recent version of Go.
 After you installed Go, a 
 ```
-go get https://bugzillatoatom.affine.space/
+go install github.com/kaueraal/bugzillatoatom@latest
 ```
 should suffice.
 Go handles the few external dependencies and compiles the application for you.
